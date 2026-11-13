@@ -17,6 +17,7 @@ const ids = [
   "receipt-statement",
   "receipt-amount",
   "receipt-recipient",
+  "receipt-place-date",
   "preview-title",
 ];
 const elements = Object.fromEntries(
@@ -37,6 +38,9 @@ const elements = Object.fromEntries(
       focus() {
         focused = id;
       },
+      setSelectionRange(start) {
+        this.selectionStart = start;
+      },
       addEventListener(name, handler) {
         listeners[name] = handler;
       },
@@ -55,11 +59,22 @@ for (const id of [
 }
 let focused = null;
 const listeners = {};
+const fixedInstant = process.env.RECEIPT_TEST_INSTANT;
+const testToday = fixedInstant ? new Date(fixedInstant) : new Date();
 vm.runInNewContext(fs.readFileSync("script.js", "utf8"), {
   document: { getElementById: (id) => elements[id] },
   window: { addEventListener(name, handler) { listeners[name] = handler; } },
+  Date: class extends Date {
+    constructor() {
+      super(testToday.getTime());
+    }
+  },
 });
+const suggestedDate = elements.date.value;
+assert.equal(suggestedDate, process.env.RECEIPT_EXPECTED_DATE ||
+  new Intl.DateTimeFormat("pt-BR").format(testToday));
 const submit = () => listeners.submit({ preventDefault() {} });
+elements.date.value = "";
 submit();
 assert.equal(focused, "payer");
 for (const id of [
@@ -78,7 +93,7 @@ for (const [id, value] of Object.entries({
   recipient: "Pessoa Recebedora",
   description: "Serviço fictício",
   amount: "10,00",
-  date: "2024-02-29",
+  date: "29/02/2024",
   place: "Fortaleza - CE",
 }))
   elements[id].value = value;
@@ -93,7 +108,7 @@ assert.equal(elements["payer-error"].textContent, "");
 assert.equal(elements.payer.attributes["aria-invalid"], undefined);
 assert.equal(elements.receipt.hidden, false);
 assert.equal(elements.print.disabled, true);
-listeners.input();
+listeners.input({ target: elements.payer });
 assert.equal(elements.receipt.hidden, true);
 console.log("R01: validação e identificação das partes aprovadas.");
 
@@ -133,3 +148,46 @@ for (const [value, numeric, words] of [
 listeners.beforeprint();
 assert.equal(elements.receipt.hidden, true);
 console.log("R02: validação, representação do valor e bloqueio de impressão parcial aprovados.");
+
+for (const value of ["29/02/2025", "29/02/1900", "31/04/2024", "01/13/2024",
+  "00/01/2024", "01/01/0000", "01/01/10000", "09/2/2024", "2024-02-29", "29/02/"]) {
+  elements.date.value = value;
+  submit();
+  assert.equal(focused, "date", value);
+  assert.equal(elements.date.attributes["aria-invalid"], "true", value);
+  assert.equal(elements["date-error"].textContent, "Informe uma data válida no formato dd/mm/yyyy.", value);
+  assert.equal(elements.receipt.hidden, true, value);
+}
+
+for (const value of [suggestedDate, "29/02/2024", "29/02/2000", "01/01/0001", "31/12/9999"]) {
+  elements.date.value = value;
+  listeners.change();
+  assert.equal(elements.receipt.hidden, true);
+  submit();
+  assert.equal(elements.receipt.hidden, false, value);
+  assert.equal(elements["receipt-place-date"].textContent, `Fortaleza - CE, ${value}`);
+  assert.equal(elements.date.attributes["aria-invalid"], undefined, value);
+  assert.equal(elements["date-error"].textContent, "", value);
+}
+console.log("R03: sugestão local, validação e data do recibo aprovadas.");
+
+function editDate(value, caret = value.length, inputType = "insertText") {
+  elements.date.value = value;
+  elements.date.selectionStart = caret;
+  listeners.input({ target: elements.date, inputType });
+}
+
+elements.date.value = "";
+for (const digit of "06092001") editDate(elements.date.value + digit);
+assert.equal(elements.date.value, "06/09/2001");
+assert.equal(elements.receipt.hidden, true);
+submit();
+assert.equal(elements["receipt-place-date"].textContent, "Fortaleza - CE, 06/09/2001");
+
+editDate("06a092001", 9, "insertFromPaste");
+assert.equal(elements.date.value, "06/09/2001");
+editDate("0609/2001", 2, "deleteContentBackward");
+assert.equal(elements.date.value, "06/09/2001");
+assert.equal(elements.date.selectionStart, 2);
+editDate("0609/2001", 2, "deleteContentForward");
+assert.equal(elements.date.selectionStart, 3);
