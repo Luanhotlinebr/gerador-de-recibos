@@ -2,6 +2,47 @@
 
 const form = document.getElementById("receipt-form");
 const dateField = document.getElementById("date");
+const documentType = document.getElementById("document-type");
+const documentNumber = document.getElementById("document-number");
+const documentError = document.getElementById("document-number-error");
+const documentTypes = new Set(["CPF", "CNPJ", "RG"]);
+const documentFormats = {
+  CPF: [/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4"],
+  CNPJ: [/^([A-Z0-9]{2})([A-Z0-9]{3})([A-Z0-9]{3})([A-Z0-9]{4})(\d{2})$/, "$1.$2.$3/$4-$5"],
+  RG: [/^(\d{2})(\d{3})(\d{3})(\d)$/, "$1.$2.$3-$4"],
+};
+
+function formatDocument(type, value) {
+  if (!documentTypes.has(type)) return value;
+  if (type === "CNPJ") value = value.replace(/[a-z]/g, (letter) => letter.toUpperCase());
+  const [pattern, replacement] = documentFormats[type];
+  return value.replace(pattern, replacement);
+}
+
+function hasDocumentFormat(type, value) {
+  const compact = value.replace(/[./-]/g, "");
+  const formatted = formatDocument(type, compact);
+  return formatted !== compact && value === formatted;
+}
+
+function cnpjCheckDigit(base) {
+  let sum = 0;
+  for (let offset = 0; offset < base.length; offset += 1) {
+    const code = base.charCodeAt(base.length - 1 - offset);
+    sum += (code - 48) * (2 + offset % 8);
+  }
+  const remainder = sum % 11;
+  return remainder < 2 ? 0 : 11 - remainder;
+}
+
+function hasValidCnpjCheckDigits(value) {
+  const compact = value.replace(/[./-]/g, "");
+  if (compact === "00000000000000") return false;
+  const base = compact.slice(0, 12);
+  const first = cnpjCheckDigit(base);
+  const second = cnpjCheckDigit(base + first);
+  return compact === `${base}${first}${second}`;
+}
 const requiredFields = [
   ["payer", "Informe quem pagou."],
   ["recipient", "Informe quem recebeu."],
@@ -132,11 +173,28 @@ function invalidatePreview() {
 }
 
 dateField.value = localDateValue(new Date());
+documentNumber.disabled = !documentTypes.has(documentType.value);
 form.addEventListener("input", (event) => {
   if (event.target === dateField) formatDateInput(dateField, event.inputType);
+  if (event.target === documentNumber && documentType.value !== "RG") {
+    const formatted = formatDocument(documentType.value, documentNumber.value);
+    if (formatted !== documentNumber.value) documentNumber.value = formatted;
+  }
   invalidatePreview();
 });
-form.addEventListener("change", invalidatePreview);
+form.addEventListener("change", (event) => {
+  if (event?.target === documentType) {
+    documentNumber.disabled = !documentTypes.has(documentType.value);
+    if (documentNumber.disabled) documentNumber.value = "";
+    documentType.removeAttribute("aria-invalid");
+    documentNumber.removeAttribute("aria-invalid");
+    documentError.textContent = "";
+  }
+  if (event?.target === documentNumber || event?.target === documentType) {
+    documentNumber.value = formatDocument(documentType.value, documentNumber.value.trim());
+  }
+  invalidatePreview();
+});
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -144,7 +202,35 @@ form.addEventListener("submit", (event) => {
 
   let firstInvalid = null;
   const values = {};
+  const identification = {
+    type: documentType.value,
+    number: formatDocument(documentType.value, documentNumber.value.trim()),
+  };
+  documentType.removeAttribute("aria-invalid");
+  documentNumber.removeAttribute("aria-invalid");
+  documentError.textContent = "";
+  let invalidDocumentField;
+  if (identification.number && !documentTypes.has(identification.type)) {
+    documentError.textContent = "Selecione CPF, CNPJ ou RG.";
+    invalidDocumentField = documentType;
+  } else if (identification.number.length > 32) {
+    documentError.textContent = "Informe um documento com até 32 caracteres.";
+    invalidDocumentField = documentNumber;
+  } else if (identification.number && identification.type !== "RG" &&
+      !hasDocumentFormat(identification.type, identification.number)) {
+    documentError.textContent = identification.type === "CPF"
+      ? "Informe um CPF com 11 dígitos."
+      : "Informe um CNPJ com 12 letras ou números, seguidos de dois dígitos.";
+    invalidDocumentField = documentNumber;
+  } else if (identification.number && identification.type === "CNPJ" &&
+      !hasValidCnpjCheckDigits(identification.number)) {
+    documentError.textContent = "Confira os dois dígitos verificadores do CNPJ.";
+    invalidDocumentField = documentNumber;
+  }
+  invalidDocumentField?.setAttribute("aria-invalid", "true");
+
   for (const [id, message] of requiredFields) {
+    if (id === "description") firstInvalid ||= invalidDocumentField;
     const field = document.getElementById(id);
     const value = field.value.trim();
     const error = document.getElementById(`${id}-error`);
@@ -179,6 +265,12 @@ form.addEventListener("submit", (event) => {
   document.getElementById("receipt-statement").textContent =
     `Recebi de ${values.payer} a quantia de ${amountInWords(values.amount)}, referente a: ${values.description}`;
   document.getElementById("receipt-recipient").textContent = values.recipient;
+  const receiptDocument = document.getElementById("receipt-document");
+  documentNumber.value = identification.number;
+  receiptDocument.textContent = identification.number
+    ? `${identification.type} ${identification.number}`
+    : "";
+  receiptDocument.hidden = !identification.number;
   document.getElementById("receipt-place-date").textContent =
     `${values.place}, ${values.date}`;
   document.getElementById("receipt").hidden = false;
