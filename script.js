@@ -1,6 +1,9 @@
 "use strict";
 
 const form = document.getElementById("receipt-form");
+const receipt = document.getElementById("receipt");
+const printButton = document.getElementById("print");
+const previewStatus = document.getElementById("preview-status");
 const dateField = document.getElementById("date");
 const documentType = document.getElementById("document-type");
 const documentNumber = document.getElementById("document-number");
@@ -165,11 +168,9 @@ function amountInWords(cents) {
 }
 
 function invalidatePreview() {
-  document.getElementById("receipt").hidden = true;
-  document.getElementById("print").disabled = true;
-  document.getElementById("preview-status").hidden = false;
-  document.getElementById("preview-status").textContent =
-    "A prévia aparece aqui após o preenchimento.";
+  receipt.hidden = true;
+  printButton.disabled = true;
+  previewStatus.hidden = false;
 }
 
 dateField.value = localDateValue(new Date());
@@ -273,14 +274,12 @@ form.addEventListener("submit", (event) => {
   receiptDocument.hidden = !identification.number;
   document.getElementById("receipt-place-date").textContent =
     `${values.place}, ${values.date}`;
-  document.getElementById("receipt").hidden = false;
-  document.getElementById("preview-status").textContent =
-    "A impressão ainda está em desenvolvimento.";
+  receipt.hidden = false;
+  printButton.disabled = false;
+  previewStatus.hidden = true;
   document.getElementById("preview-title").focus();
 });
 
-// A prévia parcial não deve ser emitida pelo menu de impressão do navegador.
-window.addEventListener("beforeprint", () => {
-  document.getElementById("receipt").hidden = true;
+printButton.addEventListener("click", () => {
+  if (!receipt.hidden) window.print();
 });
-window.addEventListener("afterprint", invalidatePreview);
