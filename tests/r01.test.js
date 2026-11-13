@@ -7,6 +7,8 @@ const ids = [
   "receipt-form",
   "payer",
   "recipient",
+  "document-type",
+  "document-number",
   "description",
   "amount",
   "date",
@@ -17,6 +19,7 @@ const ids = [
   "receipt-statement",
   "receipt-amount",
   "receipt-recipient",
+  "receipt-document",
   "receipt-place-date",
   "preview-title",
 ];
@@ -58,6 +61,7 @@ for (const id of [
   elements[`${id}-error`] = { textContent: "" };
 }
 let focused = null;
+elements["document-number-error"] = { textContent: "" };
 const listeners = {};
 const fixedInstant = process.env.RECEIPT_TEST_INSTANT;
 const testToday = fixedInstant ? new Date(fixedInstant) : new Date();
@@ -191,3 +195,81 @@ assert.equal(elements.date.value, "06/09/2001");
 assert.equal(elements.date.selectionStart, 2);
 editDate("0609/2001", 2, "deleteContentForward");
 assert.equal(elements.date.selectionStart, 3);
+
+const type = elements["document-type"];
+const number = elements["document-number"];
+const receiptDocument = elements["receipt-document"];
+assert.equal(number.disabled, true);
+submit();
+assert.equal(receiptDocument.hidden, true);
+
+for (const [selectedType, raw, formatted] of [
+  ["CPF", "02345678901", "023.456.789-01"],
+  ["CNPJ", "02345678000131", "02.345.678/0001-31"],
+  ["CNPJ", "tbz21zhv000185", "TB.Z21.ZHV/0001-85"],
+  ["CNPJ", "TB.Z21.ZHV/0001-85", "TB.Z21.ZHV/0001-85"],
+  ["RG", "023456789", "02.345.678-9"],
+  ["RG", "  001234-X  ", "001234-X"],
+]) {
+  type.value = selectedType;
+  listeners.change({ target: type });
+  assert.equal(number.disabled, false);
+  assert.equal(elements.receipt.hidden, true);
+  number.value = raw;
+  listeners.input({ target: number });
+  listeners.change({ target: number });
+  assert.equal(number.value, formatted);
+  submit();
+  assert.equal(receiptDocument.hidden, false);
+  assert.equal(receiptDocument.textContent, `${selectedType} ${formatted}`);
+  assert.equal(elements["receipt-recipient"].textContent, "Pessoa Recebedora");
+}
+
+for (const [selectedType, invalid] of [
+  ["CPF", "1234567890"],
+  ["CPF", "123.456.789-0X"],
+  ["CNPJ", "123456780001999"],
+  ["CNPJ", "TB.Z21.ZHV/0001-8X"],
+  ["CNPJ", "TB.Z21.ZHV/0001-86"],
+  ["CNPJ", "02.345.678/0001-99"],
+  ["CNPJ", "00.000.000/0000-00"],
+  ["CNPJ", "TÉ.Z21.ZHV/0001-85"],
+]) {
+  type.value = selectedType;
+  number.value = invalid;
+  submit();
+  assert.equal(focused, "document-number");
+  assert.equal(elements.receipt.hidden, true);
+}
+
+type.value = "RG";
+number.value = "0".repeat(32);
+submit();
+assert.equal(receiptDocument.textContent, `RG ${number.value}`);
+number.value += "0";
+submit();
+assert.equal(focused, "document-number");
+assert.ok(elements["document-number-error"].textContent);
+assert.equal(elements.receipt.hidden, true);
+
+type.value = "Outro";
+number.value = "001234-X";
+submit();
+assert.equal(focused, "document-type");
+assert.equal(elements.receipt.hidden, true);
+
+type.value = "";
+listeners.change({ target: type });
+assert.equal(number.disabled, true);
+assert.equal(number.value, "");
+submit();
+assert.equal(receiptDocument.hidden, true);
+assert.equal(receiptDocument.textContent, "");
+
+type.value = "RG";
+listeners.change({ target: type });
+number.value = "   ";
+submit();
+assert.equal(elements.receipt.hidden, false);
+assert.equal(receiptDocument.hidden, true);
+console.log("R04: documento opcional, tipo, comprimento e zeros à esquerda aprovados.");
