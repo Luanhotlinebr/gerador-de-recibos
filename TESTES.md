@@ -1,5 +1,7 @@
 # Testes de aceitação
 
+Na raiz do projeto, execute `node tests/r01.test.js` para conferir os testes automatizados de R01 e R02.
+
 Abra o arquivo index.html no navegador. Use apenas dados fictícios, como Pessoa Pagadora, Pessoa Recebedora, Fortaleza - CE e “Pagamento de serviço de demonstração”.
 
 | Critério | Ação | Resultado esperado |
