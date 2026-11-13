@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gerador de recibos</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <h1>Gerador de recibos</h1>
+      <p>Preencha os dados, confira a prévia e imprima ou salve em PDF.</p>
+    </header>
+
+    <div class="workspace">
+      <section class="panel" aria-labelledby="form-title">
+        <h2 id="form-title">Dados do recibo</h2>
+        <form id="receipt-form" autocomplete="off" novalidate>
+          <div class="field">
+            <label for="payer">Quem pagou</label>
+            <input id="payer" maxlength="120" required aria-describedby="payer-error">
+            <span class="error" id="payer-error"></span>
+          </div>
+          <div class="field">
+            <label for="recipient">Quem recebeu</label>
+            <input id="recipient" maxlength="120" required aria-describedby="recipient-error">
+            <span class="error" id="recipient-error"></span>
+          </div>
+          <div class="field-row document-row">
+            <div class="field">
+              <label for="document-type">Tipo de documento</label>
+              <select id="document-type">
+                <option value="">Sem documento</option>
+                <option>CPF</option>
+                <option>CNPJ</option>
+                <option>RG</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="document-number">Documento do recebedor</label>
+              <input id="document-number" maxlength="32" disabled aria-describedby="document-number-error">
+              <span class="error" id="document-number-error"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="description">Referente a</label>
+            <textarea id="description" rows="3" maxlength="600" required aria-describedby="description-error"></textarea>
+            <span class="error" id="description-error"></span>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="amount">Valor em reais</label>
+              <input id="amount" inputmode="decimal" placeholder="0,00" maxlength="14" required aria-describedby="amount-error">
+              <span class="error" id="amount-error"></span>
+            </div>
+            <div class="field">
+              <label for="date">Data</label>
+              <input id="date" type="date" min="0001-01-01" max="9999-12-31" required aria-describedby="date-error">
+              <span class="error" id="date-error"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="place">Local</label>
+            <input id="place" maxlength="100" placeholder="Cidade - UF" required aria-describedby="place-error">
+            <span class="error" id="place-error"></span>
+          </div>
+          <button class="primary" type="submit">Gerar prévia</button>
+        </form>
+      </section>
+
+      <section class="panel preview" aria-labelledby="preview-title">
+        <div class="preview-header">
+          <h2 id="preview-title" tabindex="-1">Prévia do recibo</h2>
+          <button id="print" type="button" disabled>Imprimir / salvar PDF</button>
+        </div>
+        <p id="preview-status" class="preview-status" role="status">A prévia aparece aqui após o preenchimento.</p>
+        <article id="receipt" class="receipt" aria-labelledby="receipt-title" hidden>
+          <header class="receipt-header">
+            <h2 id="receipt-title">Recibo</h2>
+            <strong id="receipt-amount"></strong>
+          </header>
+          <p id="receipt-statement"></p>
+          <footer class="receipt-footer">
+            <p id="receipt-place-date"></p>
+            <div class="signature">
+              <strong id="receipt-recipient"></strong>
+              <span id="receipt-document" hidden></span>
+            </div>
+          </footer>
+        </article>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
