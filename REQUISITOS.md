@@ -20,9 +20,14 @@ A primeira versão é uma página estática com três arquivos de aplicação, c
 ## Decisões de produto pendentes
 
 - O cabeçalho da empresa é fixo, editável ou dispensável? Nas capturas, a empresa do cabeçalho e a pessoa no bloco de assinatura são distintas. Antes de oferecer cabeçalho, definir o papel de cada parte e quais dados vão no documento.
-- O documento do recebedor deve ser obrigatório? Quais formatos, regras de validação e formas de exibição o negócio precisa aceitar para CPF, CNPJ e RG?
-- Qual é o teto do valor? Qual é o comprimento máximo de nomes e da descrição? Uma descrição extensa pode ocupar mais de uma página?
 - Quem vai usar o app e onde será publicado? Confirmar se é uma ferramenta de preenchimento avulso ou se a operação precisa guardar e recuperar recibos emitidos. Se precisar de histórico, definir acesso, retenção e recuperação antes de escolher a arquitetura.
+
+## Decisões adotadas na primeira versão
+
+- R02. Valores de R$ 0,01 a R$ 999.999.999,99, com agrupamento opcional por ponto e até duas casas decimais após a vírgula.
+- R04. O documento é opcional. Para CPF, CNPJ e RG, o número é transcrito como digitado, removendo espaços externos e respeitando o limite de 32 caracteres. O recibo identifica o tipo escolhido. A validação se limita ao comprimento e à escolha do tipo, pois o formulário registra a identificação declarada.
+- R01 e R05. O formulário admite até 120 caracteres por nome, 100 no local e 600 na descrição. Se o conteúdo precisar de mais espaço na impressão, a declaração pode continuar na página seguinte e o rodapé com a assinatura deve ficar inteiro.
+- R05 e R06. A prévia é descartada ao editar o formulário. O preenchimento existe em memória durante o uso da página e pode sair do navegador como impressão ou PDF por ação do usuário.
 
 ## Ordem de implementação e publicação
 
