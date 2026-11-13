@@ -63,11 +63,12 @@ for (const id of [
 let focused = null;
 elements["document-number-error"] = { textContent: "" };
 const listeners = {};
+let printCount = 0;
 const fixedInstant = process.env.RECEIPT_TEST_INSTANT;
 const testToday = fixedInstant ? new Date(fixedInstant) : new Date();
 vm.runInNewContext(fs.readFileSync("script.js", "utf8"), {
   document: { getElementById: (id) => elements[id] },
-  window: { addEventListener(name, handler) { listeners[name] = handler; } },
+  window: { print() { printCount += 1; } },
   Date: class extends Date {
     constructor() {
       super(testToday.getTime());
@@ -111,7 +112,7 @@ assert.equal(elements["receipt-recipient"].textContent, "Pessoa Recebedora");
 assert.equal(elements["payer-error"].textContent, "");
 assert.equal(elements.payer.attributes["aria-invalid"], undefined);
 assert.equal(elements.receipt.hidden, false);
-assert.equal(elements.print.disabled, true);
+assert.equal(elements.print.disabled, false);
 listeners.input({ target: elements.payer });
 assert.equal(elements.receipt.hidden, true);
 console.log("R01: validação e identificação das partes aprovadas.");
@@ -149,9 +150,7 @@ for (const [value, numeric, words] of [
   assert.equal(elements.amount.attributes["aria-invalid"], undefined, value);
   assert.equal(elements.receipt.hidden, false, value);
 }
-listeners.beforeprint();
-assert.equal(elements.receipt.hidden, true);
-console.log("R02: validação, representação do valor e bloqueio de impressão parcial aprovados.");
+console.log("R02: validação e representação do valor aprovadas.");
 
 for (const value of ["29/02/2025", "29/02/1900", "31/04/2024", "01/13/2024",
   "00/01/2024", "01/01/0000", "01/01/10000", "09/2/2024", "2024-02-29", "29/02/"]) {
@@ -273,3 +272,26 @@ submit();
 assert.equal(elements.receipt.hidden, false);
 assert.equal(receiptDocument.hidden, true);
 console.log("R04: documento opcional, tipo, comprimento e zeros à esquerda aprovados.");
+
+elements.description.value = "Serviço fictício\n<b>Segunda linha</b>";
+listeners.input({ target: elements.description });
+assert.equal(elements.print.disabled, true);
+listeners.click();
+assert.equal(printCount, 0);
+submit();
+assert.match(elements["receipt-statement"].textContent, /Serviço fictício\n<b>Segunda linha<\/b>/);
+assert.equal(elements.print.disabled, false);
+listeners.click();
+assert.equal(printCount, 1);
+assert.equal(elements.receipt.hidden, false);
+elements.amount.value = "2,00";
+listeners.input({ target: elements.amount });
+assert.equal(elements.receipt.hidden, true);
+assert.equal(elements.print.disabled, true);
+listeners.click();
+assert.equal(printCount, 1);
+submit();
+assert.equal(elements["receipt-amount"].textContent, "R$\u00a02,00");
+listeners.click();
+assert.equal(printCount, 2);
+console.log("R05: prévia validada, atualização e botão de impressão aprovados.");
